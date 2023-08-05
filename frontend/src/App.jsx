@@ -10,8 +10,7 @@ const App = () => {
   const [newName, setNewName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [filter, setFilter] = useState('')
-  const [successMessage, setSuccessMessage] = useState(null)
-  const [errorMessage, setErrorMessage] = useState(null)
+  const [notice, setNotice] = useState({ message: '', status: '' })
 
   useEffect(() => {
     personService.getAll().then((initialPersons) => setPersons(initialPersons))
@@ -25,6 +24,18 @@ const App = () => {
   }
   const handleChangeFilter = (e) => {
     setFilter(e.target.value)
+  }
+
+  const showNotification = (message, status = 'success') => {
+    setNotice({ message, status })
+    setTimeout(() => {
+      setNotice({ message: '', status: '' })
+    }, 5000)
+  }
+
+  const cleanForm = () => {
+    setNewName('')
+    setPhoneNumber('')
   }
 
   const addPerson = (e) => {
@@ -43,15 +54,17 @@ const App = () => {
         return
       }
 
-      personService.create(newPerson).then((returnedPerson) => {
-        setPersons([...persons, returnedPerson])
-        setSuccessMessage(`Added ${newName}`)
-        setTimeout(() => {
-          setSuccessMessage(null)
-        }, 5000)
-        setNewName('')
-        setPhoneNumber('')
-      })
+      personService
+        .create(newPerson)
+        .then((createdPerson) => {
+          setPersons([...persons, createdPerson])
+          showNotification(`Added ${newName}`)
+          cleanForm()
+        })
+        .catch((error) => {
+          console.log(error.response.data.error)
+          showNotification(error.response.data.error, 'error')
+        })
     }
   }
 
@@ -64,12 +77,10 @@ const App = () => {
         })
         .catch((e) => {
           console.error(e.message)
-          setErrorMessage(
-            `Information of ${name} has already been removed from server`
+          showNotification(
+            `Information of ${name} has already been removed from server`,
+            'error'
           )
-          setTimeout(() => {
-            setErrorMessage(null)
-          }, 5000)
           setPersons(persons.filter((p) => p.id !== id))
         })
     }
@@ -80,19 +91,32 @@ const App = () => {
       `${newPerson.name} is already added to phonebook, replace the old number with a new one?`
     )
     if (isConfirm) {
+      // personService
+      //   .update(id, newPerson)
+      //   .then((updatedPerson) => {
+      //     setPersons(persons.map((p) => (p.id !== id ? p : updatedPerson)))
+      //   })
+      //   .catch((e) => {
+      //     console.error(e.message)
+      //     showNotification(
+      //       `Information of ${newPerson.name} has already been removed from server`,
+      //       'error'
+      //     )
+      //     setPersons(persons.filter((p) => p.id !== id))
+      //   })
       personService
-        .update(id, newPerson)
-        .then((returnedPerson) => {
-          setPersons(persons.map((p) => (p.id !== id ? p : returnedPerson)))
+        .update(newPerson)
+        .then((updatedPerson) => {
+          setPersons(persons.map((p) => (p.id !== id ? p : updatedPerson)))
+          showNotification(`Updated ${updatedPerson.name}`)
+          cleanForm()
         })
         .catch((e) => {
           console.error(e.message)
-          setErrorMessage(
-            `Information of ${newPerson.name} has already been removed from server`
+          showNotification(
+            `Information of ${newPerson.name} has already been removed from server`,
+            'error'
           )
-          setTimeout(() => {
-            setErrorMessage(null)
-          }, 5000)
           setPersons(persons.filter((p) => p.id !== id))
         })
     }
@@ -107,8 +131,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
-      {!!successMessage && <Notification message={successMessage} />}
-      {!!errorMessage && <Notification message={errorMessage} status='error' />}
+      {!!notice.message && <Notification notice={notice} />}
 
       <Filter filter={filter} handleChange={handleChangeFilter} />
       <h2>Add a new</h2>
